@@ -1,6 +1,6 @@
-"""Shared utilities for Vercel API functions"""
-import pandas as pd
+"""Shared utilities for Vercel API functions - No Pandas version"""
 import requests
+import csv
 from io import StringIO
 
 # Google Sheets URL
@@ -16,51 +16,79 @@ def load_data():
         response.encoding = 'utf-8'
 
         csv_data = StringIO(response.text)
-        df = pd.read_csv(csv_data)
-        df = df.fillna("")
+        reader = csv.DictReader(csv_data)
+        data = list(reader)
 
-        data = df.to_dict(orient="records")
         return data
     except Exception as e:
         return {"error": str(e)}
 
 def get_employees_stats(raw_data):
-    """Aggregates data by employee"""
+    """Aggregates data by employee without Pandas"""
     if isinstance(raw_data, dict) and "error" in raw_data:
         return raw_data
 
-    df = pd.DataFrame(raw_data)
+    # Group by employee name
+    employees_dict = {}
 
-    # Normalize column names
-    column_map = {
-        'Фио сотрудника': 'name',
-        'название задачи': 'task',
-        'статус': 'status',
-        'срок': 'deadline',
-        'отклонение': 'deviation',
-        'Ссылка': 'link'
-    }
-    df = df.rename(columns=column_map)
+    for row in raw_data:
+        name = row.get('Фио сотрудника', '').strip()
+        if not name:
+            continue
 
+        if name not in employees_dict:
+            employees_dict[name] = {
+                'name': name,
+                'total_tasks': 0,
+                'delayed': 0,
+                'postponed': 0,
+                'deviations': [],
+                'tasks': []
+            }
+
+        # Count tasks
+        employees_dict[name]['total_tasks'] += 1
+
+        # Count statuses
+        status = row.get('статус', '').lower()
+        if 'просрочена' in status:
+            employees_dict[name]['delayed'] += 1
+        if 'отложена' in status:
+            employees_dict[name]['postponed'] += 1
+
+        # Collect deviations
+        deviation = row.get('отклонение', '')
+        try:
+            dev_num = float(deviation)
+            employees_dict[name]['deviations'].append(dev_num)
+        except (ValueError, TypeError):
+            pass
+
+        # Add task to list
+        employees_dict[name]['tasks'].append({
+            'name': name,
+            'task': row.get('название задачи', ''),
+            'status': row.get('статус', ''),
+            'deadline': row.get('срок', ''),
+            'deviation': deviation,
+            'link': row.get('Ссылка', '')
+        })
+
+    # Calculate averages and format output
     stats = []
-    if 'name' in df.columns:
-        for name, group in df.groupby('name'):
-            total_tasks = len(group)
+    for emp_data in employees_dict.values():
+        # Calculate average deviation
+        deviations = emp_data['deviations']
+        avg_deviation = sum(deviations) / len(deviations) if deviations else 0
 
-            delayed = len(group[group['status'].str.lower().str.contains('просрочена', na=False)])
-            postponed = len(group[group['status'].str.lower().str.contains('отложена', na=False)])
-
-            deviations = pd.to_numeric(group['deviation'], errors='coerce').fillna(0)
-            avg_deviation = deviations.mean()
-
-            stats.append({
-                "name": name,
-                "total_tasks": total_tasks,
-                "delayed": delayed,
-                "postponed": postponed,
-                "avg_deviation": round(avg_deviation, 1),
-                "tasks": group.to_dict(orient="records")
-            })
+        stats.append({
+            'name': emp_data['name'],
+            'total_tasks': emp_data['total_tasks'],
+            'delayed': emp_data['delayed'],
+            'postponed': emp_data['postponed'],
+            'avg_deviation': round(avg_deviation, 1),
+            'tasks': emp_data['tasks']
+        })
 
     return stats
 
