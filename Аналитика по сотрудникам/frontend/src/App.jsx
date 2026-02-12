@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
-const API_URL = 'http://localhost:8000'
+// Use relative URL for Vercel deployment, falls back to localhost for development
+const API_URL = import.meta.env.PROD ? '' : 'http://localhost:8000'
 
 function App() {
   const [employees, setEmployees] = useState([])
