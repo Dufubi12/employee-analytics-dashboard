@@ -51,3 +51,4 @@ ENV/
 .agent/
 .claude/
 *.session
+.env*.local
