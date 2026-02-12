@@ -2,25 +2,30 @@
   "version": 2,
   "builds": [
     {
-      "src": "Аналитика по сотрудникам/backend/main.py",
-      "use": "@vercel/python"
-    },
-    {
       "src": "Аналитика по сотрудникам/frontend/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "Аналитика по сотрудникам/frontend/dist"
+        "distDir": "dist"
       }
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "Аналитика по сотрудникам/backend/main.py"
+      "dest": "/api/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "Аналитика по сотрудникам/frontend/dist/$1"
+      "dest": "/Аналитика по сотрудникам/frontend/dist/$1"
     }
-  ]
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/Аналитика по сотрудникам/frontend/dist/index.html"
+    }
+  ],
+  "buildCommand": "cd 'Аналитика по сотрудникам/frontend' && npm run build",
+  "outputDirectory": "Аналитика по сотрудникам/frontend/dist",
+  "installCommand": "cd 'Аналитика по сотрудникам/frontend' && npm install"
 }
